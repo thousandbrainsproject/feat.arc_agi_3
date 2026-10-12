@@ -1,5 +1,58 @@
 ![](docs/figures/overview/logo.png)
 
+# Monty Meets ARC-AGI-3
+
+This is a fork of [tbp.monty](https://github.com/thousandbrainsproject/tbp.monty) created by Team Mighty Mouse (Dale, Jeremy, and Hojae) during the August 2026 Rome Focus Week. It connects Monty to [ARC-AGI-3](https://arcprize.org/arc-agi/3), an interactive reasoning benchmark of turn-based grid games. The goal was not to solve ARC-AGI-3, but to build a platform for exploring these games with Monty.
+
+Watch the presentation: [2026/08 - Rome Focus Week: Team Mighty Mouse (ARC-AGI-3)](https://www.youtube.com/watch?v=QsTJY-83EUg&t=168s)
+
+## What's Included
+
+- **ARC-AGI-3 simulator** (`src/tbp/monty/simulators/arc_agi/`): wraps the official `arc_agi` toolkit in offline mode. Each game is treated as an object. `SetSensorPose` moves a sensor patch over the current 64x64 frame without advancing the game, while game actions (Up/Down/Left/Right, Use, Click, Undo, Reset) change the game state. The sensor's location is `(x, y, game_step)`, so each game step is stored along the z-axis and Monty learns a temporal model of the game. The game resets automatically on a win or game over.
+- **Games** (`arc_agi/games/`): the 25 public ARC-AGI-3 games, plus three simple mazes (`sm00`, `sm01`, `sm02`) built during the hackathon with the game engine.
+- **Sensor modules** (`src/tbp/monty/frameworks/models/arc_sensor_module.py`): `ArcPatchSensorModule` extracts a palette histogram and a color transition density from each patch. `ArcChangeSensorModule` (work in progress) detects pixels that changed between frames and proposes them as goals to look at.
+- **Motor policies** (`src/tbp/monty/frameworks/models/motor_policies.py`): a snake scan over the frame, a random walk, and a goal-driven walk toward changed regions. Game actions are currently chosen at random. No policy tries to win a game yet.
+- **Compositional game maps** (`src/tbp/monty/frameworks/models/arc_compositional.py`): a child learning module learns individual sprites, and a parent learning module learns game maps composed of those sprites. Sprite locations are currently provided by an oracle derived from the game definitions.
+
+## Setup
+
+The `arc-agi` package requires Python 3.13 or later, so the conda environments (`environment.yml`, `environment_arm64.yml`), which use Python 3.8, will not work for this fork. Use [`uv`](https://docs.astral.sh/uv/) instead. This overrides the note in `UV_PROTOTYPE.md`.
+
+```bash
+uv sync
+```
+
+Set the usual Monty environment variables. Trained models are saved under `$MONTY_MODELS/my_trained_models/`, the sprite dataset is written to `$MONTY_DATA/arc/sprite_children/v2/`, and evaluation logs go to `$MONTY_LOGS`.
+
+```bash
+export MONTY_MODELS=~/tbp/results/monty/pretrained_models
+export MONTY_DATA=~/tbp/data
+export MONTY_LOGS=~/tbp/results/monty
+```
+
+The evaluation configs log to Weights & Biases. Set `WANDB_MODE=disabled` (or `offline`) if you don't want to log to W&B.
+
+## Running Experiments
+
+Run experiments with `uv run python run.py experiment=<name>`. Training must run before its matching evaluation, because evaluation loads the trained model.
+
+**Game classification** (recognize which game is being played):
+
+```bash
+uv run python run.py experiment=arc_train   # 8x8 patches, all 28 games
+uv run python run.py experiment=arc_eval
+```
+
+For 4x4 patches on a subset of 17 favorite games, run `arc_train_4k_favs` followed by `arc_eval_4k_favs`.
+
+**Compositional game maps** (learn sprites, then game maps composed of sprites):
+
+```bash
+uv run python tools/generate_arc_sprite_dataset.py   # writes the sprite dataset to $MONTY_DATA
+uv run python run.py experiment=supervised_pre_training_arc_sprite_children
+uv run python run.py experiment=supervised_pre_training_arc_comp_models
+```
+
 # Welcome to the Monty Repository!
 
 *An open-source, sensorimotor learning system following the principles of the neocortex.*
