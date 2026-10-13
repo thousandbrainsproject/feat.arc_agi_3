@@ -53,6 +53,8 @@ uv run python run.py experiment=supervised_pre_training_arc_sprite_children
 uv run python run.py experiment=supervised_pre_training_arc_comp_models
 ```
 
+---
+
 # Welcome to the Monty Repository!
 
 *An open-source, sensorimotor learning system following the principles of the neocortex.*
